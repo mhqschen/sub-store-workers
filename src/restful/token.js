@@ -404,6 +404,30 @@ function consumeShareToken(query) {
     return nextToken;
 }
 
+// 上游 >= 2.44 的 download/file 路由通过本函数消费分享 token。
+// 同一请求内可能多次调用（如 sub + col 组合），命中后缓存到 req 上避免重复写 KV。
+function consumeShareTokenForRequest(req, type) {
+    const query = {
+        token: req.query?.token,
+        type,
+        name: req.params?.name,
+    };
+    if (
+        req.subStoreShareToken &&
+        req.subStoreShareToken.token === query.token &&
+        req.subStoreShareToken.type === type &&
+        req.subStoreShareToken.name === query.name
+    ) {
+        return req.subStoreShareToken;
+    }
+
+    const token = consumeShareToken(query);
+    if (token) {
+        req.subStoreShareToken = token;
+    }
+    return token;
+}
+
 function findShareToken(query) {
     const allTokens = $.read(TOKENS_KEY) || [];
     return (
@@ -426,4 +450,10 @@ function shouldArchiveDeletion(mode) {
     );
 }
 
-export { createTokenItem, deleteTokenItem, consumeShareToken, findShareToken };
+export {
+    createTokenItem,
+    deleteTokenItem,
+    consumeShareToken,
+    consumeShareTokenForRequest,
+    findShareToken,
+};
