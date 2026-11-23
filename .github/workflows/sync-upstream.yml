@@ -294,7 +294,17 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add .upstream-sha
           git commit -m "chore: sync upstream to ${{ steps.upstream.outputs.version }} [skip ci]" || exit 0
-          git push
+          for i in 1 2 3; do
+            git pull --rebase --autostash origin main
+            if git push; then
+              echo "marker pushed on attempt $i"
+              exit 0
+            fi
+            echo "push rejected, retrying in 5s..."
+            sleep 5
+          done
+          echo "::error::failed to push upstream marker after 3 attempts"
+          exit 1
 
       - name: Bark notify success
         if: steps.check.outputs.needed == 'true' && success() && env.BARK_KEY != ''
